@@ -1,0 +1,290 @@
+#!/bin/bash
+# ================================================================
+# Functions
+# ================================================================
+# Help
+function _help() {
+    cat <<EOF
+
+USAGE
+    $BASENAME [OPTIONS] VARIABLE
+
+DESCRIPTION
+    Remove all duplicates from an environment variable like PATH.
+
+    Undefined paths will be removed if the -u option is specified.
+
+    It can be used like this.
+
+        \$ # Tidy up the PATH variable.
+        \$ PATH=\$($BASENAME PATH)
+
+    It can also be used to list the variable entries:
+
+        \$ $BASENAME -l PATH
+
+    Note that this tool only works with environment variables so
+    locally defined variables (without the export) keyword will not
+    work unless they are are part of the command.
+
+    For example, this works:
+
+        \$ # This works.
+        \$ YPATH="\${PATH}:\${PATH}" $BASENAME -L -u YPATH
+
+    This also works.
+
+        \$ # This works.
+        \$ export YPATH="\${PATH}:\${PATH}"
+        \$ $BASENAME -L -u YPATH
+        \$ unset YPATH
+
+    But this does not.
+
+        \$ # This does not work, YPATH is a local variable.
+        \$ YPATH="\${PATH}:\${PATH}"
+        \$ $BASENAME -L -u YPATH
+
+    This tool is useful for tidying up environment variables that have
+    lots of duplicates. It can also help track down the source of the
+    duplicates.
+
+    It was written in bash so that it runs wherever bash runs.
+
+OPTIONS
+    -h, --help          This help message.
+
+    -l, --list          List the path data after filtering.
+
+    -L, --list-all      List all path data including the
+                        duplicate and undefined entries.
+
+    -u, --undefined     Filter out undefined paths or files.
+                        This is useful for environment variables
+                        like PATH and LD_LIBRARY_PATH that reference
+                        directory paths.
+
+    -V, --version       Print the program version and exit.
+
+EXAMPLES
+    \$ # Example 1. Help.
+    \$ $BASENAME -h
+
+    \$ # Example 2. Filter out duplicates.
+    \$ PATH=\$($BASENAME PATH)
+
+    \$ # Example 3. Filter out duplicates and undefined paths.
+    \$ PATH=\$($BASENAME -u PATH)
+
+    \$ # Example 4. List the PATH contents.
+    \$ #            Show the entries that would be filtered.
+    \$ $BASENAME -l PATH
+
+    \$ # Example 5. List the PATH contents.
+    \$ #            Show the entries that would be filtered.
+    \$ #            Include undefined paths.
+    \$ $BASENAME -l -u PATH
+
+    \$ Example 6. An interesting example that lists detailed info.
+    \$ export XPATH="\${PATH}:\${PATH}:/undef/dir1:/undef/dir2:/undef/dir2"
+    \$ $BASENAME -L -u XPATH
+    \$ unset XPATH
+
+    \$ Example 7. Set a local variable.
+    \$ export XPATH="\${PATH}:\${PATH}:/undef/dir1:/undef/dir2:/undef/dir2"
+    \$ YPATH=\$($BASENAME -u XPATH)  # local variable
+    \$ echo \$XPATH
+    \$ echo \$YPATH
+
+VERSION
+    $BASENAME $VERSION
+
+LICENSE
+    Copyright (c) 2018 by Joe Linoff
+    MIT Open Source
+
+EOF
+    exit 0
+}
+
+# Print the version and exit.
+function _version() {
+    echo "$BASENAME $VERSION"
+    exit 0
+}
+
+# Get the CLI options.
+function _getopts() {
+    # The OPT_CACHE is to cache short form options.
+    local OPT_CACHE=()
+    local OPT=
+    local CHAR=
+    while (( $# )) || (( ${#OPT_CACHE[@]} )) ; do
+        if (( ${#OPT_CACHE[@]} > 0 )) ; then
+            OPT="${OPT_CACHE[0]}"
+            if (( ${#OPT_CACHE[@]} > 1 )) ; then
+                OPT_CACHE=(${OPT_CACHE[@]:1})
+            else
+                OPT_CACHE=()
+            fi
+        else
+            OPT="$1"
+            shift
+        fi
+        case "$OPT" in
+            # Handle the case of multiple short arguments in a single
+            # string:
+            #  -abc ==> -a -b -c
+            -[!-][a-zA-Z0-9\-_]*)
+                for (( i=1; i<${#OPT}; i++ )) ; do
+                    # Note that the leading dash is added here.
+                    CHAR=${OPT:$i:1}
+                    OPT_CACHE+=("-$CHAR")
+                done
+                ;;
+            -h|--help)
+                _help
+                ;;
+            -l|--list)
+                OPT_LIST=1
+                ;;
+            -L|--list-all)
+                (( OPT_LIST += 2 ))
+                ;;
+            -u|--undefined)
+                OPT_UNDEF=1
+                ;;
+            -V|--version)
+                _version
+                ;;
+            -*)
+                _err "Unrecognized option '$OPT'."
+                ;;
+            *)
+                if [ -n "$OPT_VAR" ] ; then
+                    _err "'$OPT_VAR' already defined. Can only define a single variable."
+                fi
+                OPT_VAR="$OPT"
+                ;;
+        esac
+    done
+
+    # Make sure that the environment variable is valid.
+    if [ -z "$OPT_VAR" ] ; then
+        _err "Environment variable not defined."
+    fi
+    local EnvVar="${!OPT_VAR}"
+    if [ -z "$EnvVar" ] ; then
+        _err "Environment variable not defined: '$OPT_VAR'."
+    fi
+}
+
+# Print an error message and exit.
+function _err() {
+    1>&2 echo -n -e "\033[1;31mERROR:${BASH_LINENO[0]}:\033[0;31m $*\033[0m\n"
+    exit 1
+}
+
+function _find() {
+    local Item="$1"
+    local ArrayName="$2[@]"
+    local Array=("${!ArrayName}")
+    for Cmp in ${Array[@]} ; do
+        if [[ "$Item" == "$Cmp" ]] ; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# ================================================================
+# Main
+# ================================================================
+readonly BASENAME=$(basename ${BASH_SOURCE[0]})
+readonly VERSION='0.8.0'
+
+OPT_LIST=0
+OPT_UNDEF=0
+OPT_VAR=
+_getopts $*
+
+Segments=(${!OPT_VAR//:/ })
+NewSegments=()
+NewVal=""
+k=0
+for ((i=0; i<${#Segments[@]}; i++)) ; do
+    # Look for the duplicate items in the list.
+    # This is an O(N) search which is okay in this case because lists
+    # are short.
+    # Didn't use associative arrays because they are
+    # not available on the ancient Mac version of bash.
+    Segment=${Segments[$i]}
+    Remove=0
+    for ((j=i-1; j>=0; j--)) ; do
+        if [[ "${Segments[$j]}" == "$Segment" ]] ; then
+            Remove=1
+            break
+        fi
+    done
+    if (( OPT_UNDEF )) ; then
+        # Delete if it is undefined.
+        # Note: that ls -1d $Segment does not work reliably.
+        TestDir=${Segment//\~/$HOME}
+        if [ ! -e "$TestDir" ] ; then
+            (( Remove += 2 ))
+        fi
+    fi
+
+    # Process it.
+    (( k++ ))
+    case "$Remove" in
+        0)
+            # This is a keeper.
+            NewSegments+=($Segment)
+            NewVal+=":$Segment"
+            if (( OPT_LIST )) ; then
+                if (( OPT_LIST == 1 )) ; then
+                    1>&2 printf '%6d ' $k
+                else
+                    1>&2 printf '%6d %d ' $k $Remove
+                fi
+                1>&2 echo "$Segment"
+            fi
+            ;;
+        [1-3])
+            # This is a duplicate.
+            if (( OPT_LIST > 1 )) ; then
+                1>&2 printf '%6d %d ' $k $Remove
+                1>&2 echo -e "\033[31m$Segment\033[0m"
+            fi
+            ;;
+        *)
+            _err "Unexpected state ($Remove)."
+            ;;
+    esac
+done
+
+if (( OPT_LIST > 1 )) ; then
+    1>&2 cat <<EOF
+
+Key
+    0 - unique and defined
+    1 - duplicate
+    2 - undefined
+    3 - undefined, duplicate
+EOF
+fi
+
+if (( OPT_LIST )) ; then
+    (( Diff = ${#Segments[@]} - ${#NewSegments[@]} ))
+    1>&2 cat <<EOF
+
+Summary
+    Original Size : ${#Segments[@]}
+    Final Size    : ${#NewSegments[@]}
+    Removed       : $Diff
+
+EOF
+else
+    echo "${NewVal:1}"
+fi
