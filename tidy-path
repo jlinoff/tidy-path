@@ -99,6 +99,9 @@ EXAMPLES
 VERSION
     $BASENAME $VERSION
 
+PROJECT
+    https://github.com/jlinoff/tidy-path
+
 LICENSE
     Copyright (c) 2018 by Joe Linoff
     MIT Open Source
@@ -201,7 +204,7 @@ function _find() {
 # Main
 # ================================================================
 readonly BASENAME=$(basename ${BASH_SOURCE[0]})
-readonly VERSION='0.8.0'
+readonly VERSION='0.9.0'
 
 OPT_LIST=0
 OPT_UNDEF=0

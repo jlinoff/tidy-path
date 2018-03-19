@@ -3,28 +3,57 @@ Bash script to remove all duplicates and, optionally undefined paths, from an en
 
 Undefined paths will be removed if the -u option is specified.
 
+It is typically installed like this.
+
+```bash
+$ git clone https://github.com/jlinoff/tidy-path.git
+$ sudo cp tidy-path /usr/local/bin/
+```
+
 It is typically used like this.
 
 ```bash
-$ PATH=$(tidy-path.sh -u PATH)
+$ PATH=$(tidy-path -u PATH)
 ```
 
-It can also be used to list the variable entries.
+It can also be used to list the components like this.
 
 ```bash
-$ export TEST_PATH="${PATH}:${PATH}:/undef/dir1:/undef/dir2:/undef/dir2"
-$ tidy-path.sh -L -u TEST_PATH
-.
-.
+$ export TPATH="~/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/path1:/opt/path2:/opt/path1:/usr/bin"
+$ tidy-path -L TPATH
+     1 0 ~/bin
+     2 0 /usr/local/bin
+     3 0 /usr/bin
+     4 0 /bin
+     5 0 /usr/sbin
+     6 0 /sbin
+     7 0 /opt/path1
+     8 0 /opt/path2
+     9 1 /opt/path1
+    10 1 /usr/bin
+
+Key
+    0 - unique and defined
+    1 - duplicate
+    2 - undefined
+    3 - undefined, duplicate
+
+Summary
+    Original Size : 10
+    Final Size    : 8
+    Removed       : 2
+$ unset TPATH
 ```
 
-Note that this tool only works with environment variables so locally defined variables (without the export)
-keyword will not work unless they are are part of the command.
+Note that this tool only works with environment variables so locally
+defined variables (without the export) keyword will not work unless
+they prefix the command.
 
-It tool is useful for tidying up environment variables that have lots of duplicates.
-It can also help track down the source of the duplicates.
+It is useful for tidying up environment variables that have lots of
+duplicates from being set in various places. It can also help track
+down the source of the duplicates.
 
-It was written in bash so that it runs wherever bash runs.
+The tool was written in bash so that it runs wherever bash runs.
 
 These are the available options.
 
