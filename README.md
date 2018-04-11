@@ -1,4 +1,6 @@
 # tidy-path
+[![Releases](https://img.shields.io/github/release/jlinoff/tidy-path.svg?style=flat)](https://github.com/jlinoff/tidy-path/releases)
+
 Bash script to remove all duplicates and, optionally undefined paths, from an environment variable like PATH.
 
 Undefined paths will be removed if the -u option is specified.
