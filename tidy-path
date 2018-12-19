@@ -10,22 +10,21 @@ USAGE
     $BASENAME [OPTIONS] VARIABLE
 
 DESCRIPTION
-    Remove all duplicates from an environment variable like PATH.
+    Tidy up shell paths by removing duplicates entries and,
+    optionally, undefined paths.
 
-    Undefined paths will be removed if the -u option is specified.
+    It is very useful keeping your shell path environment variables
+    tidy. Here is an example usage:
 
-    It can be used like this.
-
-        \$ # Tidy up the PATH variable.
         \$ PATH=\$($BASENAME PATH)
 
-    It can also be used to list the variable entries:
+    It can also be used to list path information in a readable way:
 
         \$ $BASENAME -l PATH
 
     Note that this tool only works with environment variables so
-    locally defined variables (without the export) keyword will not
-    work unless they are are part of the command.
+    locally defined variables (defined without the export keyword)
+    will not work unless they are are part of the command.
 
     For example, this works:
 
@@ -45,10 +44,6 @@ DESCRIPTION
         \$ YPATH="\${PATH}:\${PATH}"
         \$ $BASENAME -L -u YPATH
 
-    This tool is useful for tidying up environment variables that have
-    lots of duplicates. It can also help track down the source of the
-    duplicates.
-
     It was written in bash so that it runs wherever bash runs.
 
 OPTIONS
@@ -58,6 +53,13 @@ OPTIONS
 
     -L, --list-all      List all path data including the
                         duplicate and undefined entries.
+
+    -s, --silent        Fail silently. This is useful for
+                        gracefully handling variables that
+                        are not defined.
+
+                        Here is an example:
+                            $BASENAME -L NOT_DEFINED
 
     -u, --undefined     Filter out undefined paths or files.
                         This is useful for environment variables
@@ -90,11 +92,16 @@ EXAMPLES
     \$ $BASENAME -L -u XPATH
     \$ unset XPATH
 
-    \$ Example 7. Set a local variable.
+    \$ # Example 7. Set a local variable.
     \$ export XPATH="\${PATH}:\${PATH}:/undef/dir1:/undef/dir2:/undef/dir2"
     \$ YPATH=\$($BASENAME -u XPATH)  # local variable
     \$ echo \$XPATH
     \$ echo \$YPATH
+
+    \$ # Example 8: Set an environment variable and guarantee
+    \$ #            that it works when the variable is not
+    \$ #            defined.
+    \$ export LD_LIBRARY_PATH=\$($BASENAME -s LD_LIBRARY_PATH)
 
 VERSION
     $BASENAME $VERSION
@@ -154,6 +161,9 @@ function _getopts() {
             -L|--list-all)
                 (( OPT_LIST += 2 ))
                 ;;
+            -s|--silent)
+                OPT_SILENT=1
+                ;;
             -u|--undefined)
                 OPT_UNDEF=1
                 ;;
@@ -174,11 +184,16 @@ function _getopts() {
 
     # Make sure that the environment variable is valid.
     if [ -z "$OPT_VAR" ] ; then
-        _err "Environment variable not defined."
-    fi
-    local EnvVar="${!OPT_VAR}"
-    if [ -z "$EnvVar" ] ; then
-        _err "Environment variable not defined: '$OPT_VAR'."
+        if (( OPT_SILENT == 0 )) ; then
+            _err "Environment variable not defined."
+        fi
+    else
+        local EnvVar="${!OPT_VAR}"
+        if [ -z "$EnvVar" ] ; then
+            if (( OPT_SILENT == 0 )) ; then
+                _err "Environment variable not defined: '$OPT_VAR', use -s to continue."
+            fi
+        fi
     fi
 }
 
@@ -204,17 +219,24 @@ function _find() {
 # Main
 # ================================================================
 readonly BASENAME=$(basename ${BASH_SOURCE[0]})
-readonly VERSION='0.9.0'
+readonly VERSION='1.0.0'
 
+OPT_SILENT=0
 OPT_LIST=0
 OPT_UNDEF=0
 OPT_VAR=
 _getopts $*
 
-Segments=(${!OPT_VAR//:/ })
+Segments=()
+if [ -n "$OPT_VAR" ] ; then
+    Segments=(${!OPT_VAR//:/ })
+fi
 NewSegments=()
 NewVal=""
 k=0
+if (( OPT_LIST )) ; then
+    echo "Name: $OPT_VAR"
+fi
 for ((i=0; i<${#Segments[@]}; i++)) ; do
     # Look for the duplicate items in the list.
     # This is an O(N) search which is okay in this case because lists
@@ -270,7 +292,7 @@ done
 if (( OPT_LIST > 1 )) ; then
     1>&2 cat <<EOF
 
-Key
+Key:
     0 - unique and defined
     1 - duplicate
     2 - undefined
@@ -282,7 +304,7 @@ if (( OPT_LIST )) ; then
     (( Diff = ${#Segments[@]} - ${#NewSegments[@]} ))
     1>&2 cat <<EOF
 
-Summary
+Summary:
     Original Size : ${#Segments[@]}
     Final Size    : ${#NewSegments[@]}
     Removed       : $Diff

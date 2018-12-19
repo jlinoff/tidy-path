@@ -9,13 +9,17 @@ It is typically installed like this.
 
 ```bash
 $ git clone https://github.com/jlinoff/tidy-path.git
+$ # Bash version.
 $ sudo cp tidy-path /usr/local/bin/
+$ # Python version
+$ sudo cp tidypath.py /usr/local/bin/
 ```
 
 It is typically used like this.
 
 ```bash
-$ PATH=$(tidy-path -u PATH)
+$ export PATH=$(tidy-path -u PATH)  # bash
+$ export PATH=$(tidypath.py -u PATH)   # python (py2 or py3)
 ```
 
 It can also be used to list the components like this.
@@ -23,6 +27,7 @@ It can also be used to list the components like this.
 ```bash
 $ export TPATH="~/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/path1:/opt/path2:/opt/path1:/usr/bin"
 $ tidy-path -L TPATH
+Name: TPATH
      1 0 ~/bin
      2 0 /usr/local/bin
      3 0 /usr/bin
@@ -34,13 +39,13 @@ $ tidy-path -L TPATH
      9 1 /opt/path1
     10 1 /usr/bin
 
-Key
+Key:
     0 - unique and defined
     1 - duplicate
     2 - undefined
     3 - undefined, duplicate
 
-Summary
+Summary:
     Original Size : 10
     Final Size    : 8
     Removed       : 2
@@ -61,6 +66,7 @@ These are the available options.
 
 Short Option | Long Option  | Description
 ------------ | ------------ | ------------
+-c | --color | Add some color queues (python only).
 -h | --help | Help message.
 -l | --list | List the path data after filtering.
 -L | --list-all | List all paths including the duplicate and undefined entries.
