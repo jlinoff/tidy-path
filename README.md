@@ -3,6 +3,10 @@
 
 Bash script to remove all duplicates and, optionally undefined paths, from an environment variable like PATH.
 
+> There is also a python version called `tidypath.py`that works a bit
+> more reliably for cases where there may be spaces in the PATH
+> entries. It works for python2 and python3.
+
 Undefined paths will be removed if the -u option is specified.
 
 It is typically installed like this.

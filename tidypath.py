@@ -43,7 +43,7 @@ import os
 import sys
 
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 
 
 def err(msg, level=1, exit_code=1, out=sys.stderr):
@@ -178,6 +178,9 @@ def process(opts, env):
         if is_dup(dups, comp):
             continue
 
+        if not comp:
+            continue  # remove :: entries
+
         # Filter out undefined components if the user
         # told us to.
         if opts.undefined and not exists(comp):
@@ -292,7 +295,7 @@ defined.
 
 Here is an example:
     {0} -L NOT_DEFINED
- '''.format(base))    
+ '''.format(base))
     parser.add_argument('-u', '--undefined',
                         action='store_true',
                         help='''\
